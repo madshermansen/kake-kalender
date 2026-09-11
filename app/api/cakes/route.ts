@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 
 async function isAdmin() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
     const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
     if (!cakeDate || !personName || !reason || personName.length > 100 || reason.length > 500) return NextResponse.json({ error: 'Please provide a date, name, and reason.' }, { status: 400 })
     const result = await db.execute(sql`INSERT INTO cake_suggestions (cake_date, person_name, reason) VALUES (${cakeDate}, ${personName}, ${reason}) RETURNING id, cake_date, person_name, reason, status, created_at`)
+    revalidateTag('cake-suggestions', 'max')
     return NextResponse.json(result.rows[0], { status: 201 })
   }
 
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
   const notes = typeof body.notes === 'string' ? body.notes.trim() : ''
   if (!cakeDate || !personName || personName.length > 100) return NextResponse.json({ error: 'Please provide a date and a name.' }, { status: 400 })
   const result = await db.execute(sql`INSERT INTO cake_events (cake_date, person_name, notes) VALUES (${cakeDate}, ${personName}, ${notes || null}) RETURNING id, cake_date, person_name, notes`)
+  revalidateTag('cake-events', 'max')
   return NextResponse.json(result.rows[0], { status: 201 })
 }
 
@@ -45,10 +48,13 @@ export async function PATCH(request: Request) {
     const suggestion = result.rows[0]
     if (suggestion) {
       const cake = await db.execute(sql`INSERT INTO cake_events (cake_date, person_name, notes) VALUES (${suggestion.cake_date}, ${suggestion.person_name}, ${suggestion.reason}) RETURNING id, cake_date, person_name, notes`)
+      revalidateTag('cake-events', 'max')
+      revalidateTag('cake-suggestions', 'max')
       return NextResponse.json({ suggestion: { ...suggestion, status: 'accepted' }, cake: cake.rows[0] })
     }
   } else {
     await db.execute(sql`UPDATE cake_suggestions SET status = 'rejected', reviewed_at = NOW() WHERE id = ${id} AND status = 'pending'`)
+    revalidateTag('cake-suggestions', 'max')
   }
   return NextResponse.json({ ok: true })
 }
@@ -58,6 +64,7 @@ export async function DELETE(request: Request) {
   const { id } = await request.json()
   if (typeof id !== 'string') return NextResponse.json({ error: 'Invalid cake id.' }, { status: 400 })
   await db.execute(sql`DELETE FROM cake_events WHERE id = ${id}`)
+  revalidateTag('cake-events', 'max')
   return NextResponse.json({ ok: true })
 }
 
