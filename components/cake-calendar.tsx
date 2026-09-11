@@ -6,18 +6,23 @@ import { CakeSlice, ChevronLeft, ChevronRight, LogIn, LogOut, Plus, Trash2 } fro
 import { signOut } from '@/lib/auth-client'
 
 type CakeEvent = { id: string; cake_date: string; person_name: string; notes: string | null }
+type CakeSuggestion = { id: string; cake_date: string; person_name: string; reason: string; status: string }
 
 const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
-const weekDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+const weekDays = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
 function localDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
-export function CakeCalendar({ initialEvents, isAdmin }: { initialEvents: CakeEvent[]; isAdmin: boolean }) {
+export function CakeCalendar({ initialEvents, initialSuggestions, isAdmin }: { initialEvents: CakeEvent[]; initialSuggestions: CakeSuggestion[]; isAdmin: boolean }) {
   const router = useRouter()
   const today = new Date()
   const [events, setEvents] = useState(initialEvents)
+  const [suggestions, setSuggestions] = useState(initialSuggestions)
+  const [suggestionName, setSuggestionName] = useState('')
+  const [suggestionReason, setSuggestionReason] = useState('')
+  const [isSuggesting, setIsSuggesting] = useState(false)
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [selectedDate, setSelectedDate] = useState(localDateKey(today))
   const [personName, setPersonName] = useState('')
@@ -27,7 +32,8 @@ export function CakeCalendar({ initialEvents, isAdmin }: { initialEvents: CakeEv
   const days = useMemo(() => {
     const first = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
     const count = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate()
-    return [...Array(first.getDay()).fill(null), ...Array.from({ length: count }, (_, i) => new Date(viewDate.getFullYear(), viewDate.getMonth(), i + 1))]
+    const mondayOffset = (first.getDay() + 6) % 7
+    return [...Array(mondayOffset).fill(null), ...Array.from({ length: count }, (_, i) => new Date(viewDate.getFullYear(), viewDate.getMonth(), i + 1))]
   }, [viewDate])
   const upcoming = events.filter((event) => event.cake_date >= localDateKey(today)).sort((a, b) => a.cake_date.localeCompare(b.cake_date))
   const todayEvents = events.filter((event) => event.cake_date === localDateKey(today))
@@ -51,6 +57,22 @@ export function CakeCalendar({ initialEvents, isAdmin }: { initialEvents: CakeEv
     const created = await response.json()
     setEvents((current) => [...current, created])
     setPersonName(''); setNotes(''); setIsAdding(false)
+  }
+
+  async function submitSuggestion(event: React.FormEvent) {
+    event.preventDefault()
+    if (!suggestionName.trim() || !suggestionReason.trim()) return
+    const response = await fetch('/api/cakes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'suggestion', cakeDate: selectedDate, personName: suggestionName, reason: suggestionReason }) })
+    if (!response.ok) return
+    setSuggestionName(''); setSuggestionReason(''); setIsSuggesting(false)
+  }
+
+  async function reviewSuggestion(id: string, status: 'accepted' | 'rejected') {
+    const response = await fetch('/api/cakes', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) })
+    if (!response.ok) return
+    const data = await response.json()
+    setSuggestions((current) => current.map((item) => item.id === id ? { ...item, status } : item))
+    if (data.cake) setEvents((current) => [...current, data.cake])
   }
 
   async function removeCake(id: string) {
@@ -77,7 +99,7 @@ export function CakeCalendar({ initialEvents, isAdmin }: { initialEvents: CakeEv
         <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
           <section className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
             <div className="mb-6 flex items-center justify-between"><button aria-label="Previous month" onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} className="rounded-full p-2 hover:bg-muted"><ChevronLeft /></button><h2 className="font-serif text-2xl font-bold">{monthNames[viewDate.getMonth()]} {viewDate.getFullYear()}</h2><button aria-label="Next month" onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))} className="rounded-full p-2 hover:bg-muted"><ChevronRight /></button></div>
-            <div className="grid grid-cols-7 gap-1 text-center">{weekDays.map((day) => <div key={day} className="pb-3 font-mono text-xs font-bold uppercase text-muted-foreground">{day}</div>)}{days.map((day, index) => { const key = day ? localDateKey(day) : `empty-${index}`; const dayEvents = day ? events.filter((event) => event.cake_date === key) : []; const isWeekend = day ? day.getDay() === 0 || day.getDay() === 5 || day.getDay() === 6 : false; return <button key={key} disabled={!day} onClick={() => day && setSelectedDate(key)} className={`min-h-20 rounded-xl p-2 text-left transition ${day && selectedDate === key ? 'bg-primary text-primary-foreground' : isWeekend ? 'bg-muted/70 text-muted-foreground hover:bg-muted' : 'hover:bg-muted'} ${day && key === localDateKey(today) ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : ''} ${!day ? 'cursor-default' : ''}`}><span className="text-sm font-semibold">{day?.getDate()}</span>{dayEvents.map((event) => <span key={event.id} className={`mt-2 block truncate text-xs ${selectedDate === key ? 'text-primary-foreground/80' : isWeekend ? 'text-muted-foreground' : 'text-primary'}`} title={event.person_name}><span aria-hidden="true">🍰 </span>{event.person_name}</span>)}</button> })}</div>
+            <div className="grid grid-cols-7 gap-1 text-center">{weekDays.map((day) => <div key={day} className="pb-3 font-mono text-xs font-bold uppercase text-muted-foreground">{day}</div>)}{days.map((day, index) => { const key = day ? localDateKey(day) : `empty-${index}`; const dayEvents = day ? events.filter((event) => event.cake_date === key) : []; const isWeekend = day ? day.getDay() === 0 || day.getDay() === 5 || day.getDay() === 6 : false; return <button key={key} disabled={!day} onClick={() => day && setSelectedDate(key)} className={`min-h-16 rounded-xl p-2 text-left transition ${day && selectedDate === key ? 'bg-primary text-primary-foreground' : isWeekend ? 'bg-muted/70 text-muted-foreground hover:bg-muted' : 'hover:bg-muted'} ${day && key === localDateKey(today) ? 'ring-2 ring-primary ring-offset-2 ring-offset-card' : ''} ${!day ? 'cursor-default' : ''}`}><span className="text-sm font-semibold">{day?.getDate()}</span>{dayEvents.map((event) => <span key={event.id} className={`mt-2 block truncate text-xs ${selectedDate === key ? 'text-primary-foreground/80' : isWeekend ? 'text-muted-foreground' : 'text-primary'}`} title={event.person_name}><span aria-hidden="true">🍰 </span>{event.person_name}</span>)}</button> })}</div>
           </section>
 
           <aside className="flex flex-col gap-8">
@@ -87,6 +109,10 @@ export function CakeCalendar({ initialEvents, isAdmin }: { initialEvents: CakeEv
         </div>
 
         {selectedEvents.length > 0 && <section className="mt-8 rounded-2xl border border-border bg-card p-6"><p className="font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground">Selected day</p><h2 className="mt-1 font-serif text-2xl font-bold">{new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h2><div className="mt-4 flex flex-wrap gap-3">{selectedEvents.map((event) => <div key={event.id} className="rounded-xl bg-accent px-4 py-3"><p className="font-semibold">🍰 {event.person_name}</p>{event.notes && <p className="mt-1 text-sm text-muted-foreground">{event.notes}</p>}</div>)}</div></section>}
+
+        <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-mono text-xs font-bold uppercase tracking-wider text-primary">Have a sweet idea?</p><h2 className="mt-1 font-serif text-2xl font-bold">Suggest a cake day</h2><p className="mt-1 text-sm text-muted-foreground">Tell the admin who should bring cake and why.</p></div><button onClick={() => setIsSuggesting((value) => !value)} className="rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground">{isSuggesting ? 'Close form' : 'Make a suggestion'}</button></div>{isSuggesting && <form onSubmit={submitSuggestion} className="mt-5 grid gap-4 rounded-xl bg-muted p-4 sm:grid-cols-2"><label className="flex flex-col gap-2 text-sm font-semibold">Date<input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} required className="rounded-lg border border-input bg-background px-3 py-2 font-normal" /></label><label className="flex flex-col gap-2 text-sm font-semibold">Your name<input value={suggestionName} onChange={(event) => setSuggestionName(event.target.value)} required className="rounded-lg border border-input bg-background px-3 py-2 font-normal" /></label><label className="flex flex-col gap-2 text-sm font-semibold sm:col-span-2">Reason<textarea value={suggestionReason} onChange={(event) => setSuggestionReason(event.target.value)} placeholder="Birthday, team celebration, or just because..." required rows={3} className="rounded-lg border border-input bg-background px-3 py-2 font-normal" /></label><button className="rounded-full bg-foreground px-5 py-3 text-sm font-bold text-background sm:col-span-2">Send suggestion</button></form>}</section>
+
+        {isAdmin && <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm"><div className="mb-5"><p className="font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground">Admin review</p><h2 className="mt-1 font-serif text-2xl font-bold">Cake suggestions</h2></div>{suggestions.filter((item) => item.status === 'pending').length ? <div className="flex flex-col gap-3">{suggestions.filter((item) => item.status === 'pending').map((item) => <div key={item.id} className="flex flex-col gap-3 rounded-xl bg-muted p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-semibold">{item.person_name} · {new Date(`${item.cake_date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p><p className="text-sm text-muted-foreground">{item.reason}</p></div><div className="flex gap-2"><button onClick={() => reviewSuggestion(item.id, 'accepted')} className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Accept</button><button onClick={() => reviewSuggestion(item.id, 'rejected')} className="rounded-full border border-border px-4 py-2 text-sm font-bold">Decline</button></div></div>)}</div> : <p className="rounded-xl bg-muted p-4 text-sm text-muted-foreground">No pending suggestions.</p>}</section>}
 
         {isAdmin && isAdding && <div className="fixed inset-0 z-10 flex items-center justify-center bg-foreground/30 p-5" role="dialog" aria-modal="true" aria-labelledby="add-cake-title"><form onSubmit={addCake} className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl"><div className="mb-6 flex items-start justify-between"><div><p className="font-mono text-xs font-bold uppercase tracking-wider text-primary">New cake day</p><h2 id="add-cake-title" className="mt-1 font-serif text-2xl font-bold">Who&apos;s bringing cake?</h2></div><button type="button" onClick={() => setIsAdding(false)} className="text-2xl text-muted-foreground" aria-label="Close">×</button></div><label className="flex flex-col gap-2 text-sm font-semibold">Date<input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} required className="rounded-lg border border-input bg-background px-3 py-2 font-normal" /></label><label className="mt-4 flex flex-col gap-2 text-sm font-semibold">Person&apos;s name<input autoFocus value={personName} onChange={(event) => setPersonName(event.target.value)} placeholder="e.g. Sam" required className="rounded-lg border border-input bg-background px-3 py-2 font-normal" /></label><label className="mt-4 flex flex-col gap-2 text-sm font-semibold">Note <span className="font-normal text-muted-foreground">(optional)</span><input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Chocolate, homemade..." className="rounded-lg border border-input bg-background px-3 py-2 font-normal" /></label><button className="mt-6 w-full rounded-full bg-primary px-4 py-3 font-bold text-primary-foreground">Save cake day</button></form></div>}
       </div>
