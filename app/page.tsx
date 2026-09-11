@@ -1,10 +1,13 @@
 import { CakeCalendar } from '@/components/cake-calendar'
+import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
+import { headers } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
+  const session = await auth.api.getSession({ headers: await headers() })
   const result = await db.execute(sql`SELECT id, cake_date, person_name, notes FROM cake_events ORDER BY cake_date ASC, created_at ASC`)
-  return <CakeCalendar initialEvents={result.rows as { id: string; cake_date: string; person_name: string; notes: string | null }[]} />
+  return <CakeCalendar initialEvents={result.rows as { id: string; cake_date: string; person_name: string; notes: string | null }[]} isAdmin={Boolean(session?.user)} />
 }
