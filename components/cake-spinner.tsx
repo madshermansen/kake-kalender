@@ -18,15 +18,18 @@ const cakeTypes = [
 export function CakeSpinner() {
   const [selected, setSelected] = useState(cakeTypes[0])
   const [isSpinning, setIsSpinning] = useState(false)
+  const [reelOffset, setReelOffset] = useState(0)
+  const reelItems = Array.from({ length: 5 }, () => cakeTypes).flat()
 
   function spin() {
+    if (isSpinning) return
+    const winnerIndex = cakeTypes.length * 3 + Math.floor(Math.random() * cakeTypes.length)
     setIsSpinning(true)
+    setReelOffset(-(winnerIndex * 148 - 148))
     window.setTimeout(() => {
-      let next = cakeTypes[Math.floor(Math.random() * cakeTypes.length)]
-      if (cakeTypes.length > 1 && next.name === selected.name) next = cakeTypes[(cakeTypes.findIndex((cake) => cake.name === next.name) + 1) % cakeTypes.length]
-      setSelected(next)
+      setSelected(cakeTypes[winnerIndex % cakeTypes.length])
       setIsSpinning(false)
-    }, 650)
+    }, 3200)
   }
 
   return (
@@ -45,14 +48,16 @@ export function CakeSpinner() {
           <p className="mt-3 text-muted-foreground">Let the cake spinner choose your next sweet treat.</p>
         </header>
 
-        <section className="mx-auto max-w-2xl rounded-3xl border border-primary/20 bg-card p-6 text-center shadow-sm sm:p-10" aria-live="polite">
-          <div className={`mx-auto flex size-36 items-center justify-center rounded-full bg-accent text-7xl shadow-inner transition-transform duration-700 sm:size-44 sm:text-8xl ${isSpinning ? 'animate-spin' : ''}`} aria-hidden="true">{selected.emoji}</div>
-          <p className="mt-8 font-mono text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Your cake pick</p>
-          <h2 className="mt-2 font-serif text-3xl font-bold sm:text-4xl">{selected.name}</h2>
-          <p className="mx-auto mt-3 max-w-md text-muted-foreground">{selected.note}</p>
-          <button type="button" onClick={spin} disabled={isSpinning} className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-bold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-wait disabled:opacity-70">
-            <Dices data-icon="inline-start" /> {isSpinning ? 'Spinning...' : 'Spin again'}
-          </button>
+        <section className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-8" aria-live="polite">
+          <div className="mb-5 flex items-center justify-between"><span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Cake case #001</span><span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-primary">Rare dessert drop</span></div>
+          <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-[#241c20] px-3 py-7 shadow-inner sm:px-8 sm:py-10">
+            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-1 -translate-x-1/2 bg-primary shadow-[0_0_18px_rgba(218,74,112,0.9)]" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 -translate-x-1/2 border-x-8 border-transparent border-t-0 border-b-[14px] border-b-primary" aria-hidden="true" />
+            <div className="flex gap-3 transition-transform duration-[3200ms] ease-[cubic-bezier(0.12,0.8,0.18,1)]" style={{ transform: `translateX(calc(${reelOffset}px + 50% - 74px))` }}>
+              {reelItems.map((cake, index) => <div key={`${cake.name}-${index}`} className="flex h-32 min-w-32 flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#35292e] text-center text-white shadow-lg sm:h-36 sm:min-w-36"><span className="text-5xl" aria-hidden="true">{cake.emoji}</span><span className="max-w-28 text-xs font-bold leading-tight">{cake.name}</span></div>)}
+            </div>
+          </div>
+          <div className="mt-7 text-center"><p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">{isSpinning ? 'Opening case...' : 'Case opened'}</p><h2 className="mt-2 font-serif text-3xl font-bold sm:text-4xl">{selected.name}</h2><p className="mx-auto mt-2 max-w-md text-muted-foreground">{selected.note}</p><button type="button" onClick={spin} disabled={isSpinning} className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-bold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-wait disabled:opacity-70"><Dices data-icon="inline-start" /> {isSpinning ? 'Unboxing...' : 'Open cake case'}</button></div>
         </section>
 
         <section className="mx-auto mt-8 grid max-w-2xl gap-3 sm:grid-cols-2" aria-label="Cake ideas">
