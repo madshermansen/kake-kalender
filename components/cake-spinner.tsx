@@ -19,7 +19,8 @@ export function CakeSpinner() {
   const [selected, setSelected] = useState(cakeTypes[0])
   const [isSpinning, setIsSpinning] = useState(false)
   const [reelPosition, setReelPosition] = useState(0)
-  const reelItems = Array.from({ length: 12 }, () => cakeTypes).flat()
+  // Keep a generous runway so repeated spins never run past the rendered cards.
+  const reelItems = Array.from({ length: 40 }, () => cakeTypes).flat()
   const cardStep = 156
 
   function spin() {
