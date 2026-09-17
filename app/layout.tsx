@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Cake Calendar · Who brings cake?',
-  description: 'A shared calendar for keeping track of the next cake day.',
+  title: 'Kakekalender · Hvem tar med kake?',
+  description: 'En felles kalender for å holde oversikt over neste kakedag.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -39,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background">
+    <html lang="no" className="bg-background">
       <body className="antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
