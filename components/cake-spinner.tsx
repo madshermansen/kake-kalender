@@ -34,6 +34,15 @@ const rarityStyles: Record<Rarity, string> = {
   Mythic: 'border-pink-300 bg-pink-50 text-pink-700',
 }
 
+const spinnerRarityStyles: Record<Rarity, string> = {
+  Common: 'border-slate-300/70 bg-slate-500/30',
+  Uncommon: 'border-emerald-300/80 bg-emerald-500/30',
+  Rare: 'border-blue-300/80 bg-blue-500/30',
+  Exotic: 'border-purple-300/80 bg-purple-500/30',
+  Legendary: 'border-amber-300/90 bg-amber-500/35 shadow-[0_0_16px_rgba(251,191,36,0.28)]',
+  Mythic: 'border-pink-300/90 bg-pink-500/35 shadow-[0_0_18px_rgba(244,114,182,0.38)]',
+}
+
 const emptyState: GameState = { coins: 0, streak: 0, lastCheckIn: '', inventory: {} }
 
 function today() {
@@ -125,7 +134,7 @@ export function CakeSpinner() {
             <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-1 -translate-x-1/2 bg-primary shadow-[0_0_18px_rgba(218,74,112,0.9)]" aria-hidden="true" />
             <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 -translate-x-1/2 border-x-8 border-transparent border-t-0 border-b-[14px] border-b-primary" aria-hidden="true" />
             <div className="flex gap-3 transition-transform duration-[3200ms] ease-[cubic-bezier(0.12,0.8,0.18,1)]" style={{ transform: `translateX(calc(50% - 72px - ${reelPosition * cardStep}px))` }}>
-              {reelItems.map((cake, index) => <div key={`${cake.name}-${index}`} className="flex h-32 w-36 min-w-36 flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-[#35292e] text-center text-white shadow-lg sm:h-36"><span className="text-5xl" aria-hidden="true">{cake.emoji}</span><span className="max-w-28 text-xs font-bold leading-tight">{cake.name}</span></div>)}
+              {reelItems.map((cake, index) => <div key={`${cake.name}-${index}`} className={`flex h-32 w-36 min-w-36 flex-col items-center justify-center gap-1 rounded-xl border text-center text-white shadow-lg sm:h-36 ${spinnerRarityStyles[cake.rarity]}`}><span className="text-5xl" aria-hidden="true">{cake.emoji}</span><span className="max-w-28 text-xs font-bold leading-tight">{cake.name}</span><span className="text-[10px] font-black uppercase tracking-wider text-white/80">{cake.rarity}</span></div>)}
             </div>
           </div>
           <div className="mt-7 text-center"><p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">{isSpinning ? 'Åpner kasse ...' : 'Kasse åpnet'}</p><h2 className="mt-2 font-serif text-3xl font-bold sm:text-4xl">{selected.name}</h2><p className="mx-auto mt-2 max-w-md text-muted-foreground">{selected.note}</p><button type="button" onClick={spin} disabled={isSpinning || game.coins < SPIN_COST} className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-bold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"><Dices data-icon="inline-start" /> {isSpinning ? 'Pakker ut ...' : game.coins < SPIN_COST ? `Trenger ${SPIN_COST} mynter` : `Spinn for ${SPIN_COST} mynter`}</button></div>
