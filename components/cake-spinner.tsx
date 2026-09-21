@@ -26,12 +26,12 @@ const cakeTypes: Cake[] = [
 ]
 
 const rarityStyles: Record<Rarity, string> = {
-  Common: 'border-border bg-muted/40 text-muted-foreground',
-  Uncommon: 'border-sky-300/60 bg-sky-50 text-sky-700',
-  Rare: 'border-violet-300/60 bg-violet-50 text-violet-700',
-  Exotic: 'border-fuchsia-300/60 bg-fuchsia-50 text-fuchsia-700',
-  Legendary: 'border-amber-300/70 bg-amber-50 text-amber-700',
-  Mythic: 'border-rose-300/70 bg-rose-50 text-rose-700',
+  Common: 'border-slate-300 bg-slate-100 text-slate-700',
+  Uncommon: 'border-emerald-300 bg-emerald-50 text-emerald-700',
+  Rare: 'border-blue-300 bg-blue-50 text-blue-700',
+  Exotic: 'border-purple-300 bg-purple-50 text-purple-700',
+  Legendary: 'border-amber-300 bg-amber-50 text-amber-700',
+  Mythic: 'border-pink-300 bg-pink-50 text-pink-700',
 }
 
 const emptyState: GameState = { coins: 0, streak: 0, lastCheckIn: '', inventory: {} }
@@ -133,7 +133,7 @@ export function CakeSpinner() {
 
         {activeTab === 'inventory' && <section className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-5 sm:p-8" aria-labelledby="inventory-heading">
           <div className="mb-5 flex items-center justify-between"><div><h2 id="inventory-heading" className="font-serif text-2xl font-bold">Kakesamlingen</h2><p className="mt-1 text-sm text-muted-foreground">Sjeldenheten avgjør hvor ofte kaken dukker opp.</p></div><LockKeyhole className="text-muted-foreground" aria-hidden="true" /></div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{cakeTypes.map((cake) => <div key={cake.name} className={`rounded-2xl border p-4 ${game.inventory[cake.name] ? rarityStyles[cake.rarity] : 'border-border bg-muted/20 opacity-50'}`}><div className="flex items-start justify-between"><span className="text-3xl" aria-hidden="true">{game.inventory[cake.name] ? cake.emoji : '？'}</span><span className="text-xs font-bold">{game.inventory[cake.name] ? `×${game.inventory[cake.name]}` : 'Låst'}</span></div><p className="mt-3 text-sm font-bold">{cake.name}</p><p className="mt-1 text-xs font-medium">{cake.rarity}</p></div>)}</div>
+          {ownedCakes.length > 0 ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{ownedCakes.map((cake) => <div key={cake.name} className={`rounded-2xl border p-4 ${rarityStyles[cake.rarity]}`}><div className="flex items-start justify-between"><span className="text-3xl" aria-hidden="true">{cake.emoji}</span><span className="text-xs font-bold">×{game.inventory[cake.name]}</span></div><p className="mt-3 text-sm font-bold">{cake.name}</p><p className="mt-1 text-xs font-medium">{cake.rarity}</p></div>)}</div> : <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-5 py-10 text-center"><p className="font-serif text-xl font-bold">Samlingen er tom</p><p className="mt-2 text-sm text-muted-foreground">Spinn for å legge din første kake i inventaret.</p></div>}
           <p className="mt-5 text-xs text-muted-foreground">Sjanser per spinn: Common 43% · Uncommon 30% · Rare 20% · Exotic 5% · Legendary 1,8% · Mythic 0,2%</p>
         </section>}
 
