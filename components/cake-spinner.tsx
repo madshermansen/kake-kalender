@@ -108,7 +108,7 @@ export function CakeSpinner() {
           <Link href="/" className="text-sm font-bold text-muted-foreground transition hover:text-foreground">Kalender</Link>
           <Link href="/leaderboard" className="text-sm font-bold text-muted-foreground transition hover:text-foreground">Toppliste</Link>
           <Link href="/suggestions" className="text-sm font-bold text-muted-foreground transition hover:text-foreground">Forslag</Link>
-          <Link href="/cake-spinner" className="text-sm font-bold text-primary">Kakespinner</Link>
+          <Link href="/cake-spinner" className="relative text-sm font-bold text-primary">Kakespinner{game.coins > 0 && <span className="absolute -right-3 -top-3 flex size-2.5" aria-label="Du har mynter å bruke"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" /></span>}</Link>
         </nav>
 
         <header className="mx-auto mb-8 max-w-2xl text-center">
