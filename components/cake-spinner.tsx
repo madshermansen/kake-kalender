@@ -8,26 +8,30 @@ const STORAGE_KEY = 'kakekalender-gamification'
 const SPIN_COST = 5
 const MAX_DAILY_COINS = 25
 
-type Rarity = 'Vanlig' | 'Uvanlig' | 'Sjelden' | 'Legendarisk'
+type Rarity = 'Common' | 'Uncommon' | 'Rare' | 'Exotic' | 'Legendary' | 'Mythic'
 type Cake = { name: string; emoji: string; note: string; rarity: Rarity }
 type GameState = { coins: number; streak: number; lastCheckIn: string; inventory: Record<string, number> }
 
 const cakeTypes: Cake[] = [
-  { name: 'Sjokoladefondant', emoji: '🍫', note: 'Rich, gooey, and always a crowd-pleaser.', rarity: 'Vanlig' },
-  { name: 'Victoria sponge', emoji: '🍓', note: 'Light sponge, jam, and a little bit of joy.', rarity: 'Vanlig' },
-  { name: 'Carrot cake', emoji: '🥕', note: 'Spiced, comforting, and crowned with cream cheese frosting.', rarity: 'Uvanlig' },
-  { name: 'Lemon drizzle', emoji: '🍋', note: 'Bright, zingy, and perfect with a cup of tea.', rarity: 'Uvanlig' },
-  { name: 'Red velvet', emoji: '❤️', note: 'Soft, velvety, and made for celebrations.', rarity: 'Sjelden' },
-  { name: 'Coffee & walnut', emoji: '☕', note: 'A grown-up classic with a lovely little crunch.', rarity: 'Sjelden' },
-  { name: 'Funfetti', emoji: '🎉', note: 'Colourful, cheerful, and impossible not to smile at.', rarity: 'Legendarisk' },
-  { name: 'Cheesecake', emoji: '🧀', note: 'Creamy, cool, and ready for a biscuit base.', rarity: 'Vanlig' },
+  { name: 'Sjokoladefondant', emoji: '🍫', note: 'Rich, gooey, and always a crowd-pleaser.', rarity: 'Common' },
+  { name: 'Victoria sponge', emoji: '🍓', note: 'Light sponge, jam, and a little bit of joy.', rarity: 'Common' },
+  { name: 'Cheesecake', emoji: '🧀', note: 'Creamy, cool, and ready for a biscuit base.', rarity: 'Common' },
+  { name: 'Carrot cake', emoji: '🥕', note: 'Spiced, comforting, and crowned with cream cheese frosting.', rarity: 'Uncommon' },
+  { name: 'Lemon drizzle', emoji: '🍋', note: 'Bright, zingy, and perfect with a cup of tea.', rarity: 'Uncommon' },
+  { name: 'Red velvet', emoji: '❤️', note: 'Soft, velvety, and made for celebrations.', rarity: 'Rare' },
+  { name: 'Coffee & walnut', emoji: '☕', note: 'A grown-up classic with a lovely little crunch.', rarity: 'Rare' },
+  { name: 'Funfetti', emoji: '🎉', note: 'Colourful, cheerful, and impossible not to smile at.', rarity: 'Exotic' },
+  { name: 'Golden crown cake', emoji: '👑', note: 'A once-in-a-blue-moon celebration cake.', rarity: 'Legendary' },
+  { name: 'Starlight cake', emoji: '🌟', note: 'The rarest slice in the whole collection.', rarity: 'Mythic' },
 ]
 
 const rarityStyles: Record<Rarity, string> = {
-  Vanlig: 'border-border bg-muted/40 text-muted-foreground',
-  Uvanlig: 'border-sky-300/50 bg-sky-50 text-sky-700',
-  Sjelden: 'border-violet-300/50 bg-violet-50 text-violet-700',
-  Legendarisk: 'border-amber-300/60 bg-amber-50 text-amber-700',
+  Common: 'border-border bg-muted/40 text-muted-foreground',
+  Uncommon: 'border-sky-300/60 bg-sky-50 text-sky-700',
+  Rare: 'border-violet-300/60 bg-violet-50 text-violet-700',
+  Exotic: 'border-fuchsia-300/60 bg-fuchsia-50 text-fuchsia-700',
+  Legendary: 'border-amber-300/70 bg-amber-50 text-amber-700',
+  Mythic: 'border-rose-300/70 bg-rose-50 text-rose-700',
 }
 
 const emptyState: GameState = { coins: 0, streak: 0, lastCheckIn: '', inventory: {} }
@@ -42,7 +46,7 @@ function daysBetween(first: string, second: string) {
 
 function pickCake() {
   const roll = Math.random()
-  const rarity: Rarity = roll < 0.55 ? 'Vanlig' : roll < 0.83 ? 'Uvanlig' : roll < 0.95 ? 'Sjelden' : 'Legendarisk'
+  const rarity: Rarity = roll < 0.43 ? 'Common' : roll < 0.73 ? 'Uncommon' : roll < 0.93 ? 'Rare' : roll < 0.98 ? 'Exotic' : roll < 0.998 ? 'Legendary' : 'Mythic'
   const pool = cakeTypes.filter((cake) => cake.rarity === rarity)
   return pool[Math.floor(Math.random() * pool.length)]
 }
@@ -53,6 +57,7 @@ export function CakeSpinner() {
   const [isSpinning, setIsSpinning] = useState(false)
   const [reelPosition, setReelPosition] = useState(0)
   const [checkedIn, setCheckedIn] = useState(false)
+  const [activeTab, setActiveTab] = useState<'spinner' | 'inventory'>('spinner')
   const reelItems = useMemo(() => Array.from({ length: 40 }, () => cakeTypes).flat(), [])
   const cardStep = 156
 
@@ -109,7 +114,12 @@ export function CakeSpinner() {
           <div className="rounded-2xl border border-border bg-card p-4"><div className="flex items-center gap-2 text-sm font-bold text-muted-foreground"><Sparkles data-icon="inline-start" /> Samling</div><p className="mt-1 text-3xl font-black">{ownedCakes.length}<span className="text-lg text-muted-foreground"> / {cakeTypes.length}</span></p><p className="text-xs text-muted-foreground">ulike kaker funnet</p></div>
         </section>
 
-        <section className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-8" aria-live="polite">
+        <div className="mx-auto mb-6 flex max-w-4xl justify-center gap-2 rounded-full border border-border bg-muted/40 p-1" role="tablist" aria-label="Kakespinner og inventar">
+          <button type="button" role="tab" aria-selected={activeTab === 'spinner'} onClick={() => setActiveTab('spinner')} className={`rounded-full px-5 py-2 text-sm font-bold transition ${activeTab === 'spinner' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Kakespinner</button>
+          <button type="button" role="tab" aria-selected={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} className={`rounded-full px-5 py-2 text-sm font-bold transition ${activeTab === 'inventory' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Inventar ({ownedCakes.length})</button>
+        </div>
+
+        {activeTab === 'spinner' && <section className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-8" aria-live="polite">
           <div className="mb-5 flex items-center justify-between"><span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Kakekasse #001</span><span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-primary">Dagens belønning: {dailyReward} mynter</span></div>
           <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-[#241c20] px-3 py-7 shadow-inner sm:px-8 sm:py-10">
             <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-1 -translate-x-1/2 bg-primary shadow-[0_0_18px_rgba(218,74,112,0.9)]" aria-hidden="true" />
@@ -119,12 +129,13 @@ export function CakeSpinner() {
             </div>
           </div>
           <div className="mt-7 text-center"><p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">{isSpinning ? 'Åpner kasse ...' : 'Kasse åpnet'}</p><h2 className="mt-2 font-serif text-3xl font-bold sm:text-4xl">{selected.name}</h2><p className="mx-auto mt-2 max-w-md text-muted-foreground">{selected.note}</p><button type="button" onClick={spin} disabled={isSpinning || game.coins < SPIN_COST} className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-bold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"><Dices data-icon="inline-start" /> {isSpinning ? 'Pakker ut ...' : game.coins < SPIN_COST ? `Trenger ${SPIN_COST} mynter` : `Spinn for ${SPIN_COST} mynter`}</button></div>
-        </section>
+        </section>}
 
-        <section className="mx-auto mt-8 max-w-4xl rounded-3xl border border-border bg-card p-5 sm:p-8" aria-labelledby="inventory-heading">
+        {activeTab === 'inventory' && <section className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-5 sm:p-8" aria-labelledby="inventory-heading">
           <div className="mb-5 flex items-center justify-between"><div><h2 id="inventory-heading" className="font-serif text-2xl font-bold">Kakesamlingen</h2><p className="mt-1 text-sm text-muted-foreground">Sjeldenheten avgjør hvor ofte kaken dukker opp.</p></div><LockKeyhole className="text-muted-foreground" aria-hidden="true" /></div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{cakeTypes.map((cake) => <div key={cake.name} className={`rounded-2xl border p-4 ${game.inventory[cake.name] ? rarityStyles[cake.rarity] : 'border-border bg-muted/20 opacity-50'}`}><div className="flex items-start justify-between"><span className="text-3xl" aria-hidden="true">{game.inventory[cake.name] ? cake.emoji : '？'}</span><span className="text-xs font-bold">{game.inventory[cake.name] ? `×${game.inventory[cake.name]}` : 'Låst'}</span></div><p className="mt-3 text-sm font-bold">{cake.name}</p><p className="mt-1 text-xs font-medium">{cake.rarity}</p></div>)}</div>
-        </section>
+          <p className="mt-5 text-xs text-muted-foreground">Sjanser per spinn: Common 43% · Uncommon 30% · Rare 20% · Exotic 5% · Legendary 1,8% · Mythic 0,2%</p>
+        </section>}
 
         <div className="mt-8 flex justify-center gap-2 text-sm text-muted-foreground"><CakeSlice className="text-primary" /> Kom innom hver dag for flere mynter.</div>
       </div>
