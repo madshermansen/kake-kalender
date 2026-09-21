@@ -10,6 +10,7 @@ const MAX_DAILY_COINS = 25
 
 type Rarity = 'Common' | 'Uncommon' | 'Rare' | 'Exotic' | 'Legendary' | 'Mythic'
 type Cake = { name: string; emoji: string; note: string; rarity: Rarity }
+type CakeEvent = { id: string; cake_date: string; person_name: string; notes: string | null }
 type GameState = { coins: number; streak: number; lastCheckIn: string; inventory: Record<string, number> }
 
 const cakeTypes: Cake[] = [
@@ -60,13 +61,17 @@ function pickCake() {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-export function CakeSpinner() {
+export function CakeSpinner({ cakeEvents }: { cakeEvents: CakeEvent[] }) {
   const [game, setGame] = useState<GameState>(emptyState)
   const [selected, setSelected] = useState(cakeTypes[0])
   const [isSpinning, setIsSpinning] = useState(false)
   const [reelPosition, setReelPosition] = useState(0)
   const [checkedIn, setCheckedIn] = useState(false)
+  const [lootAvailable, setLootAvailable] = useState(false)
   const [activeTab, setActiveTab] = useState<'spinner' | 'inventory'>('spinner')
+  const todayKey = today()
+  const todayCakeEvents = cakeEvents.filter((event) => event.cake_date === todayKey)
+  const bonusCoins = todayCakeEvents.length > 0 ? 5 : 0
   const reelItems = useMemo(() => Array.from({ length: 40 }, () => cakeTypes).flat(), [])
   const cardStep = 156
 
@@ -76,11 +81,9 @@ export function CakeSpinner() {
     const date = today()
     if (current.lastCheckIn !== date) {
       const streak = current.lastCheckIn && daysBetween(current.lastCheckIn, date) === 1 ? Math.min(current.streak + 1, 8) : 1
-      const reward = Math.min(10 + (streak - 1) * 2, MAX_DAILY_COINS)
-      current.coins += reward
       current.streak = streak
-      current.lastCheckIn = date
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
+      setLootAvailable(true)
+    } else {
       setCheckedIn(true)
     }
     setGame(current)
@@ -100,6 +103,20 @@ export function CakeSpinner() {
 
   const ownedCakes = cakeTypes.filter((cake) => game.inventory[cake.name])
   const dailyReward = Math.min(10 + Math.max(game.streak - 1, 0) * 2, MAX_DAILY_COINS)
+  const totalDailyReward = dailyReward + bonusCoins
+
+  function collectLoot() {
+    if (!lootAvailable) return
+    const nextGame = { ...game, coins: game.coins + totalDailyReward, lastCheckIn: todayKey }
+    setGame(nextGame)
+    setLootAvailable(false)
+    setCheckedIn(true)
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextGame))
+  }
+
+  const calendarDays = Array.from({ length: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() }, (_, index) => index + 1)
+  const monthLabel = new Date().toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' })
+  const firstWeekday = (new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay() + 6) % 7
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -108,8 +125,10 @@ export function CakeSpinner() {
           <Link href="/" className="text-sm font-bold text-muted-foreground transition hover:text-foreground">Kalender</Link>
           <Link href="/leaderboard" className="text-sm font-bold text-muted-foreground transition hover:text-foreground">Toppliste</Link>
           <Link href="/suggestions" className="text-sm font-bold text-muted-foreground transition hover:text-foreground">Forslag</Link>
-          <Link href="/cake-spinner" className="relative text-sm font-bold text-primary">Kakespinner{game.coins > 0 && <span className="absolute -right-3 -top-3 flex size-2.5" aria-label="Du har mynter å bruke"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" /></span>}</Link>
+          <Link href="/cake-spinner" className="relative text-sm font-bold text-primary">Kakespinner{lootAvailable && <span className="absolute -right-3 -top-3 flex size-2.5" aria-label="Du har mynter å bruke"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" /></span>}</Link>
         </nav>
+
+        {lootAvailable && <section className="mx-auto mb-6 flex max-w-4xl flex-col gap-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between" aria-live="polite"><div><p className="text-xs font-bold uppercase tracking-wider text-amber-700">Dagens loot er klar</p><p className="mt-1 font-serif text-xl font-bold text-amber-950">Samle {totalDailyReward} mynter{bonusCoins ? ' + bonus for kakedag' : ''}</p><p className="mt-1 text-sm text-amber-800">Du må hente belønningen før dagens innsjekking teller.</p></div><button type="button" onClick={collectLoot} className="rounded-full bg-amber-600 px-5 py-2.5 font-bold text-white shadow-sm transition hover:bg-amber-700">Samle loot</button></section>}
 
         <header className="mx-auto mb-8 max-w-2xl text-center">
           <p className="mb-2 font-mono text-xs font-bold uppercase tracking-[0.22em] text-primary">Litt hjelp til å velge</p>
@@ -127,6 +146,8 @@ export function CakeSpinner() {
           <button type="button" role="tab" aria-selected={activeTab === 'spinner'} onClick={() => setActiveTab('spinner')} className={`rounded-full px-5 py-2 text-sm font-bold transition ${activeTab === 'spinner' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Kakespinner</button>
           <button type="button" role="tab" aria-selected={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} className={`rounded-full px-5 py-2 text-sm font-bold transition ${activeTab === 'inventory' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>Inventar ({ownedCakes.length})</button>
         </div>
+
+        {lootAvailable && <section className="mx-auto mb-6 max-w-4xl rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-labelledby="check-in-calendar-heading"><div className="mb-4 flex items-center justify-between"><div><p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-primary">Daglig innsjekking</p><h2 id="check-in-calendar-heading" className="mt-1 font-serif text-2xl font-bold capitalize">{monthLabel}</h2></div><span className="text-sm font-bold text-muted-foreground">{game.streak} dagers rekke</span></div><div className="grid grid-cols-7 gap-1.5 text-center sm:gap-2"><span className="pb-1 text-[10px] font-bold uppercase text-muted-foreground">Man</span><span className="pb-1 text-[10px] font-bold uppercase text-muted-foreground">Tir</span><span className="pb-1 text-[10px] font-bold uppercase text-muted-foreground">Ons</span><span className="pb-1 text-[10px] font-bold uppercase text-muted-foreground">Tor</span><span className="pb-1 text-[10px] font-bold uppercase text-muted-foreground">Fre</span><span className="pb-1 text-[10px] font-bold uppercase text-muted-foreground">Lør</span><span className="pb-1 text-[10px] font-bold uppercase text-muted-foreground">Søn</span>{Array.from({ length: firstWeekday }).map((_, index) => <span key={`empty-${index}`} aria-hidden="true" />)}{calendarDays.map((day) => { const key = `${todayKey.slice(0, 7)}-${String(day).padStart(2, '0')}`; const event = cakeEvents.find((item) => item.cake_date === key); const isToday = key === todayKey; const isCollected = key === game.lastCheckIn; return <div key={key} className={`relative flex min-h-11 flex-col items-center justify-center rounded-xl border text-sm font-bold ${isToday ? 'border-primary bg-accent text-primary' : 'border-border bg-muted/20 text-foreground'} ${event ? 'ring-2 ring-amber-300' : ''}`} title={event ? `Bonus loot: ${event.person_name} tar med kake` : undefined}><span>{day}</span><span className="text-[10px]" aria-label={event ? 'Kakedag, bonus loot' : isCollected ? 'Loot hentet' : 'Ingen loot'}>{event ? '★' : isCollected ? '✓' : ''}</span></div>})}</div><div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground"><span>✓ Loot hentet</span><span className="font-bold text-amber-600">★ Kakedag gir +5 bonus</span><span className="text-primary">● I dag</span></div></section>}
 
         {activeTab === 'spinner' && <section className="mx-auto max-w-4xl rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-8" aria-live="polite">
           <div className="mb-5 flex items-center justify-between"><span className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Kakekasse #001</span><span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-primary">Dagens belønning: {dailyReward} mynter</span></div>
