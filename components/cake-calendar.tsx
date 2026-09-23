@@ -16,6 +16,12 @@ function localDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
+function daysBetween(startDate: string, endDate: string) {
+  const start = Date.UTC(Number(startDate.slice(0, 4)), Number(startDate.slice(5, 7)) - 1, Number(startDate.slice(8, 10)))
+  const end = Date.UTC(Number(endDate.slice(0, 4)), Number(endDate.slice(5, 7)) - 1, Number(endDate.slice(8, 10)))
+  return Math.floor((end - start) / 86400000)
+}
+
 export function CakeCalendar({ initialEvents, initialSuggestions, isAdmin, page = 'calendar' }: { initialEvents: CakeEvent[]; initialSuggestions: CakeSuggestion[]; isAdmin: boolean; page?: 'calendar' | 'leaderboard' | 'suggestions' }) {
   const router = useRouter()
   const today = new Date()
@@ -36,8 +42,12 @@ export function CakeCalendar({ initialEvents, initialSuggestions, isAdmin, page 
     const mondayOffset = (first.getDay() + 6) % 7
     return [...Array(mondayOffset).fill(null), ...Array.from({ length: count }, (_, i) => new Date(viewDate.getFullYear(), viewDate.getMonth(), i + 1))]
   }, [viewDate])
-  const upcoming = events.filter((event) => event.cake_date >= localDateKey(today)).sort((a, b) => a.cake_date.localeCompare(b.cake_date))
-  const todayEvents = events.filter((event) => event.cake_date === localDateKey(today))
+  const todayKey = localDateKey(today)
+  const upcoming = events.filter((event) => event.cake_date >= todayKey).sort((a, b) => a.cake_date.localeCompare(b.cake_date))
+  const pastEvents = events.filter((event) => event.cake_date <= todayKey).sort((a, b) => b.cake_date.localeCompare(a.cake_date))
+  const lastCakeDay = pastEvents[0]
+  const daysSinceLastCake = lastCakeDay ? daysBetween(lastCakeDay.cake_date, todayKey) : null
+  const todayEvents = events.filter((event) => event.cake_date === todayKey)
   const selectedEvents = events.filter((event) => event.cake_date === selectedDate)
   const leaderboard = useMemo(() => {
     const scores = new Map<string, { name: string; cakes: number }>()
@@ -94,9 +104,15 @@ export function CakeCalendar({ initialEvents, initialSuggestions, isAdmin, page 
           <div className="flex flex-wrap items-center gap-2">{isAdmin ? <><span className="rounded-full bg-accent px-4 py-2 text-sm font-semibold">Adminmodus</span><button onClick={async () => { await signOut(); router.refresh() }} className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-bold"><LogOut size={16} /> Logg ut</button><button onClick={() => setIsAdding(true)} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground shadow-sm transition hover:opacity-90"><Plus size={18} /> Legg til kakedag</button></> : <><Link href="/suggestions" className="rounded-full border border-primary px-3 py-2 text-xs font-bold text-primary transition hover:bg-accent">Foreslå en kake</Link><a href="/sign-in" className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-bold"><LogIn size={16} /> Adminpålogging</a></>}</div>
         </header>
 
-        <section className={`mb-8 rounded-2xl border p-5 ${todayEvents.length ? 'border-primary/30 bg-accent' : 'border-border bg-card'}`} aria-live="polite">
-          <div className="flex items-center gap-4"><span className="flex size-12 items-center justify-center rounded-xl bg-background text-2xl">{todayEvents.length ? '🎉' : '☕'}</span><div><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">I dag · {today.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</p><p className="mt-1 text-lg font-semibold">{todayEvents.length ? `${todayEvents.map((event) => event.person_name).join(' & ')} ${todayEvents.length === 1 ? 'is' : 'are'} bringing cake!` : 'Ingen kake er planlagt i dag.'}</p></div></div>
-        </section>
+        <div className="mb-8 grid gap-4 sm:grid-cols-[minmax(0,1.5fr)_minmax(220px,0.5fr)]">
+          <section className={`rounded-2xl border p-5 ${todayEvents.length ? 'border-primary/30 bg-accent' : 'border-border bg-card'}`} aria-live="polite">
+            <div className="flex items-center gap-4"><span className="flex size-12 items-center justify-center rounded-xl bg-background text-2xl">{todayEvents.length ? '🎉' : '☕'}</span><div><p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">I dag · {today.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</p><p className="mt-1 text-lg font-semibold">{todayEvents.length ? `${todayEvents.map((event) => event.person_name).join(' & ')} ${todayEvents.length === 1 ? 'is' : 'are'} bringing cake!` : 'Ingen kake er planlagt i dag.'}</p></div></div>
+          </section>
+          <section className="rounded-2xl border border-border bg-card p-5" aria-label="Dager siden siste kakedag">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Siden siste kakedag</p>
+            {daysSinceLastCake === null ? <p className="mt-2 text-lg font-semibold">Ingen kakedager ennå</p> : <><p className="mt-1 font-serif text-4xl font-bold text-primary">{daysSinceLastCake}</p><p className="text-sm text-muted-foreground">{daysSinceLastCake === 1 ? 'dag' : 'dager'}</p></>}
+          </section>
+        </div>
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)] lg:items-start">
           <section className={`${page === 'calendar' ? 'block' : 'hidden'} order-1 w-full rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5`}>
